@@ -121,3 +121,32 @@ The harness itself can be improved by the sustaining agent over time (it acquire
 This infrastructure makes "meshing" not a vague hope but a measurable, testable, versioned engineering practice — exactly what allows the sustaining self-improving agent to turn skill acquisition into true modpack evolution and self-evolution.
 
 See the main ARCHITECTURE.md (Skill Meshing section) for how this ties into the 8-phase loop and the review_file + git safety model.
+
+## Testing Gap Finders, Specialization Splitting, and Recursive Agents
+
+The infrastructure must validate the Gap Finder and splitting mechanics:
+
+- **Gap Finder tests**: Synthetic scenarios where the broad agent has "maxed" (inject plateau metrics, saturated registry). Run the GapFind phase (or full loop with GapFind enabled). Validate:
+  - Proposed agent-type mesh targets are high-quality (review them with specialists; check alignment with external signals).
+  - Split proposals are realistic (include draft child IDENTITY, inheritance plan, lift estimates).
+  - Use `best-of-n` or A/B: compare vast-task performance with/without the proposed splits (simulate children).
+
+- **Split execution and inheritance tests**:
+  - Execute a split in isolated worktree.
+  - Verify child receives correct meshed subset (no loss, proper attribution).
+  - Run child on narrow sub-tasks; measure precision lift vs. parent.
+  - Verify parent can mesh child outputs (e.g., feed child's specialized design into parent's vast-task flow).
+  - Test rollback of bad splits via git.
+
+- **Recursive evolution tests**:
+  - Full tree simulation: start broad, evolve, GapFind+split, evolve children, GapFind grandchildren.
+  - Metrics: "specialization depth", "mesh synergy across levels", "coverage of vast task via meshed specialists".
+  - Validate no infinite recursion (bounds via max depth in STATE, GapFind must justify splits with data).
+
+- **Harness extensions**: The `mesh-validator` / test runner should have modes for "gapfind-only", "split-simulation", "recursive-tree". Use `spawn_subagent` with different focuses for children in the test env. Log all GapFind decisions for audit in reports/.
+
+- **Integration with meshing tests**: Every mesh test should include a GapFind "what next to mesh/split" step and validate the proposals.
+
+These tests ensure the recursive "vast → specialized → more specialized" dynamic works safely and produces measurable improvement, feeding back into the sustaining agent's own Analyze/GapFind.
+
+Update the top-level `infrastructure/testing-meshed-skills-and-agents.md` similarly for shared harness components.

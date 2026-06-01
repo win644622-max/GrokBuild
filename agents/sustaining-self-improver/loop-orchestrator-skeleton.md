@@ -116,3 +116,29 @@ Always cite sources and log decisions. Use todo_write for mesh phases. Bound the
 
 After mesh-integrate, proceed to Reflect (include mesh quality metrics) and Checkpoint.
 
+
+## GapFind Phase (Gap Finder for Optimal Meshing and Recursive Specialization)
+
+After Analyze (todo `gapfind-N`):
+
+- Invoke Gap Finder logic (can be inline prompts + sub-spawns, or a dedicated `gap-finder` persona loaded from personas/gap-finder.md once created).
+- Analyze current pack + metrics + logs to answer:
+  - "What agent types / sub-sustaining-agents / new personas should we mesh next for the *most optimal output* on vast/broad tasks in this focus?"
+  - "Have we maxed evolution for the current broad focus? (plateau metrics, persistent gaps despite meshing, registry saturation)"
+  - "What specialized child sustaining agents should we split off for finer-grained tasks?"
+- Use bounded research: spawn `explore` subagents (read-only) with prompts like "research emerging specialist roles and sub-agent types for <focus> vast tasks", web/X searches, introspection of own history.
+- Output prioritized "agent-type mesh targets" and "split proposals" (with draft child IDENTITY.md content, inheritance plan from parent's meshed pack, rationale, expected lift).
+- Log decisions with sources.
+- These outputs become top priorities for the subsequent Acquire phase (acquire knowledge for the new types) and Propose (draft the new personas or child structures).
+
+**Splitting execution** (when approved via review and GapFind signals "maxed"):
+- Create child dir `../<child-focus-slug>/` (or propose to parent for creation).
+- Seed with inherited artifacts: copy relevant skills/personas/knowledge subsets (with attribution), create child IDENTITY.md referencing parent evolution.
+- Set up child's STATE.md, scheduler (via parent or direct `scheduler_create` with durable prompt pointing to child's home).
+- Update parent's IDENTITY/SKILL_REGISTRY to reference children and "orchestrator of specialists" role.
+- The children run independent sustaining loops; parent can mesh their outputs/packs for original vast tasks.
+
+This phase ensures the recursive "broad vast-task agent → evolve via mesh → GapFind split → specialized agents → repeat" dynamic. The Gap Finder is the "ask" mechanism the user described: it explicitly surfaces "what agent types to mesh for optimal" and "gaps in new sub agent types".
+
+Update your IDENTITY.md charter to authorize GapFind-driven splitting as a core evolutionary strategy.
+

@@ -110,32 +110,52 @@ stateDiagram-v2
     Idle --> Triggered : scheduler fire (durable) \n or on-task spawn \n or manual
     Triggered --> Observe : load IDENTITY.md + STATE.md + recent logs
     Observe --> Analyze : introspect performance, gaps, last tasks
-    Analyze --> Acquire : decide priorities (task-driven + curiosity)
-    Acquire --> Propose : research complete; draft updates
+    Analyze --> GapFind : identify mesh gaps + optimal agent/sub-agent types to add/split
+    GapFind --> Acquire : prioritized targets including new sub-agent types for specialization
+    Acquire --> Propose : research complete; draft updates + mesh proposals + split proposals
     Propose --> SelfReview : write review_file (or plan.md)
     SelfReview --> Integrate : 0 open issues
     SelfReview --> Escalate : needs-user-input or stalemate
-    Integrate --> Reflect : apply via search_replace + git commit
-    Reflect --> Checkpoint : update improvement_log.md + STATE.md + metrics
-    Checkpoint --> Idle : persist; optional re-trigger
+    Integrate --> Mesh : mesh new skills + resolve into modpack; test mesh
+    Mesh --> Reflect : apply via search_replace + git commit; log mesh quality
+    Reflect --> Checkpoint : update improvement_log.md + STATE.md + metrics + specialization signals
+    Checkpoint --> Idle : persist; optional re-trigger or split trigger
     Escalate --> HumanInLoop : ask_user_question or parent notification
     HumanInLoop --> Propose : feedback incorporated
-    HumanInLoop --> Analyze : revised priorities
+    HumanInLoop --> Analyze : revised priorities or split decision
     note right of Acquire
       Bounded: max N searches,\n max time, use explore subagent\n (read-only)
     end note
     note right of SelfReview
       Reuses exact review_file contract\n from implementer.md / design-doc-writer.md\n (Status: open → addressed/wontfix + Response)\n + plan mode for high-ambiguity
     end note
+    note right of GapFind
+      Gap finder persona/sub-agent: \n"what agent types to mesh for optimal output?"\n + "gaps requiring new sub-agent types?"
+    end note
+    note right of Mesh
+      Explicit meshing + testing before commit.\n Supports recursive specialization (broad -> split).
+    end note
 ```
 
-**Phases in detail** (orchestrator maintains todo via `todo_write` with canonical ids: `observe`, `analyze-N`, `acquire-N`, `propose`, `review-round-N`, `integrate`, `reflect`, `checkpoint`):
+**Phases in detail** (orchestrator maintains todo via `todo_write` with canonical ids: `observe`, `analyze-N`, `gapfind-N`, `acquire-N`, `propose`, `review-round-N`, `integrate`, `mesh-N`, `reflect`, `checkpoint`):
+
+The GapFind and Mesh phases are new explicit additions to support the recursive specialization and meshing vision.
 
 1. **Observe** (read-only): Read full IDENTITY.md, STATE.md, improvement_log.md (tail), SKILL_REGISTRY.md, recent task artifacts if parent passed paths, relevant session summaries from `~/.grok/memory/...` if in scope, git log of own subtree. Record current capabilities, recent parent tasks in domain, known gaps.
 
 2. **Analyze & Prioritize**: Gap analysis. Inputs: task performance (pre/post improvement deltas in performance/), coverage holes in SKILL_REGISTRY, external signals (recent web results on domain, commits in related code). Prioritize: high-impact (from recent failed/slow tasks), curiosity (novel patterns), maintenance (drift detection). Output: ordered list of "acquisition targets" + rationale. Use `todo_write`.
 
-3. **Acquire**: Multi-source, bounded.
+3. **GapFind (for Optimal Meshing and Recursive Specialization)**: The dedicated Gap Finder mechanism (can be implemented as a spawned sub-agent with "gap-finder" persona or integrated logic in the orchestrator, using `todo_write` id `gapfind-N`).
+
+   - Analyzes current meshed pack (SKILL_REGISTRY, MODPACK.md, performance metrics, recent task outcomes) to answer: "What agent types (or sub-sustaining-agents / personas) should be meshed next for the most optimal output on vast tasks in this focus?"
+   - Identifies gaps in new sub-agent types: detects when the current broad sustaining agent for a "vast task" (e.g., "end-to-end software delivery for domain X") has maxed its evolution (plateau in metrics, recurring unresolvable gaps despite meshing, coverage saturation in SKILL_REGISTRY).
+   - Proposes specialization splits: e.g., "Split into specialized sub-agents for 'frontend patterns', 'backend systems', 'deployment & observability'". Each split spawns (or proposes via parent) a new sustaining-self-improver instance with narrowed focus, inheriting the meshed knowledge from parent via git/export of relevant pack subsets.
+   - Outputs: list of "agent-type mesh targets" (e.g., new personas, new sub-agent focuses) and "split proposals" (with rationale, expected performance lift, inheritance plan).
+   - Uses existing primitives: spawn `explore` subagents for research on "emergent specialist domains in <focus>", web/X tools for external signals on specialization trends, introspection of own `improvement_log.md` and `performance/`.
+   - Feeds directly into Acquire (the new targets become high-priority acquisition items) and Propose (draft new sub-agent IDENTITYs or persona files).
+   - This enables the recursive vision: broad agent for vast task → evolve via meshing until maxed → GapFind detects split opportunity → specialized child agents each run their own sustaining loops → repeat at finer granularity. The parent sustaining agent can act as "orchestrator of specialists" by meshing their outputs/packs.
+
+4. **Acquire**: Multi-source, bounded.
    - Internal: `grep`/`read_file` on own prior runs + parent context.
    - External: `web_search` + `web_fetch` + X tools (targeted queries derived from gaps).
    - Code/docs: spawn `explore` subagents (read-only) with focus prompt + specific targets; `resume_from` chaining if multi-stage.
@@ -143,7 +163,7 @@ stateDiagram-v2
    - Feedback: if available, incorporate from parent or ask_user_question.
    - Always cite sources (file paths, URLs, commit SHAs).
 
-4. **Propose Integration**: For each target, draft concrete changes.
+5. **Propose Integration**: For each target (including gapfinder outputs), draft concrete changes.
    - New/updated `skills/<name>/SKILL.md` (use patterns from `~/.grok/skills/create-skill/SKILL.md` or the `/create-skill` flow).
    - Updates to IDENTITY.md, custom personas (toml + md), helper scripts.
    - Knowledge entries (curated md under `knowledge/`).
@@ -151,7 +171,7 @@ stateDiagram-v2
    - For complex: first `enter_plan_mode`, write only to plan.md (in its session), then exit.
    - Write proposed artifacts to temp or review staging area + a `review_file` (following exact format from personas).
 
-5. **Review (Safe Gate)**: 
+6. **Review (Safe Gate)**: 
    - Self-review: spawn reviewer subagent (or reuse `/review` skill patterns) targeting the proposed diffs + review_file.
    - Or parent review: surface review_file to main Grok.
    - Must follow the contract exactly (see `bundled/skills/shared/personas/design-doc-writer.md:3` and implementer.md):
@@ -162,19 +182,27 @@ stateDiagram-v2
    - Re-review loop until 0 open (no cap, like `/design` and `/implement`).
    - Stalemate → escalate via `ask_user_question` (user or parent Grok decides; final).
 
-6. **Integrate & Version**: On 0 open:
+7. **Integrate & Version**: On 0 open:
    - Apply via `search_replace`/`write` (orchestrator does this after review approval; subagents do not write core pack directly in v1).
    - `run_terminal_command`: `cd <home>; git add -A; git commit -m "sustain: <concise> (loop <id>)"`.
    - Update STATE.md + SKILL_REGISTRY.md.
    - For new skills, optionally invoke the `/create-skill` flow or directly follow patterns from `~/.grok/skills/create-skill/SKILL.md` (script the scaffolding for autonomy).
 
-7. **Reflect & Evaluate**: 
+8. **Mesh (Skill Meshing and Modpack Evolution, including post-mesh testing)**: Explicit meshing phase after integration (todo `mesh-N`).
+   - Perform compatibility analysis, propose cross-refs/adapters/MODPACK.md updates.
+   - Run mesh-specific tests via the testing infrastructure (isolated worktrees, cross-skill tasks, reviewer/best-of-n/check-work validation).
+   - Review the mesh using review_file.
+   - Integrate meshed state + commit with "modpack evolution" message.
+   - This is where new sub-agent types from GapFind get meshed (e.g., child sustaining agents' packs are meshed at parent level for vast tasks).
+
+9. **Reflect & Evaluate**: 
    - Compute simple metrics (e.g. "acquired X items, integrated Y after Z review rounds, estimated coverage delta").
    - Self-eval prompt: "Given the changes and prior performance log, rate improvement quality 1-5 and list risks introduced."
    - Append structured entry to `improvement_log.md` (date, targets, sources, changes, metrics, reflection, commit SHA).
    - Optionally flush generalized patterns (future: analogous to implement memory.py but scoped to this focus).
+   - Evaluate specialization signals (e.g., "evolution plateaued for broad focus; GapFind split proposals ready").
 
-8. **Checkpoint & Schedule**: Write STATE.md (last_loop_ts, pending_gaps[], current_schedule_id, version). If more work, re-trigger self via scheduler or background. Clean temps.
+10. **Checkpoint & Schedule**: Write STATE.md (last_loop_ts, pending_gaps[], current_schedule_id, version, specialization_state). If more work or split triggered, re-trigger self via scheduler or background. Clean temps. Trigger child sustaining agents for splits if approved.
 
 **Resumption**: On restart, any durable scheduler task fires a prompt that begins with "Resume sustaining loop for focus <slug>. Load full state from <home>/STATE.md and IDENTITY.md. Continue from last checkpoint or re-Observe."
 
@@ -288,6 +316,51 @@ The architecture requires (and we will build) dedicated testing infrastructure f
 This infrastructure turns "add a skill and hope it meshes" into "add, mesh, test the mesh rigorously, then commit only if the mesh improves the pack."
 
 See the dedicated infrastructure files we will create in this repo for the concrete harness, example test batteries, and integration with the loop (e.g., the skeleton will call into the mesh tester during the Mesh phase).
+
+### Gap Finding and Recursive Evolutionary Specialization
+
+This is the mechanism that powers the "vast task → max evolution → split into specialized sub-agents → repeat" vision. The Gap Finder is a first-class component (implemented as dedicated logic in the loop orchestrator, or as a spawned sub-agent using a "gap-finder" persona derived from the researcher/implementer patterns). It runs primarily during/after the Analyze phase (with its own `gapfind-N` todos) and feeds Acquire + Propose + Mesh.
+
+#### Role of the Gap Finder
+- **Identifies meshing gaps for optimal output**: "Given the current vast-task sustaining agent and its meshed pack, what additional agent types (new personas, new sub-sustaining-agents, or cross-focus meshes) should be meshed in next to produce the most optimal results on broad/vast tasks?"
+  - Uses performance data, improvement_log, task outcomes, and external signals (web/X scans for "emerging specialist roles in <domain>").
+  - Proposes "agent type mesh targets" (e.g., "mesh a 'security-specialist sub-agent' persona into the pack for auth-heavy vast tasks").
+  - Prioritizes for synergy: which new type would most amplify the existing meshed capabilities (e.g., research-type + design-type mesh for "research-backed designs").
+
+- **Finds gaps in new sub-agent types**: Scans for when the current broad agent has "maxed" its evolution for the vast task.
+  - Signals of maxed evolution: plateau in metrics (no lift from further meshing), recurring unaddressed gaps despite multiple review/implement cycles, SKILL_REGISTRY coverage saturation, high "specialization debt" in logs.
+  - Proposes splits: "The broad 'end-to-end X delivery' sustaining agent has maxed. Split off specialized child sustaining-self-improver instances for 'frontend X patterns', 'backend systems for X', 'observability & deployment for X'."
+  - Each split inherits the parent's meshed knowledge (via export of relevant pack subsets, git subtree or file copies + attribution in IDENTITY).
+  - The parent can then evolve into an "orchestrator of specialists" (meshing outputs from child agents' packs for the original vast task).
+
+- **Drives recursive specialization**: 
+  - Level 0: Broad sustaining agent spawned for "vast task" (e.g., full software engineering for a business domain).
+  - Evolution via Acquire + Mesh + review loops until plateau.
+  - GapFind detects split opportunity → proposes child agents (narrower focus, own sustaining loops).
+  - Children evolve independently at finer granularity.
+  - Grandchildren, etc.
+  - The tree of specialists can be meshed at higher levels for complex vast tasks.
+  - This creates a fractal, self-organizing hierarchy of agents, all versioned and sustained in the GrokBuild repo under `agents/sustaining-self-improver/`.
+
+The Gap Finder explicitly "asks" (via internal prompts + sub-spawns + external research): "what agent types to mesh for the most optimal output?"
+
+#### Integration with the Sustaining Loop
+- **In Analyze/GapFind**: After standard gap analysis, run Gap Finder sub-process (spawn explore/researcher sub-agents if needed for "what specialist roles exist?").
+- **Output to Acquire/Propose**: New "agent-type" acquisition targets and "split proposals" (with draft child IDENTITY.md, inheritance plan, expected lift).
+- **In Mesh**: When meshing a new sub-agent type, treat the child's pack as a "skill" to mesh at the parent level (cross-agent meshing for vast tasks).
+- **Splitting trigger**: In Reflect/Checkpoint, if GapFind signals "maxed + split ready" and review approves, the orchestrator (or parent) creates the child dir structure, seeds it with inherited meshed artifacts (via git), and sets up its scheduler. The parent updates its IDENTITY to reference children.
+- **Todo integration**: Add `gapfind-N`, `propose-split`, `execute-split` ids. The skeleton will be updated to call Gap Finder logic.
+
+This makes the sustaining loop not just additive but *divisive and hierarchical*, enabling unbounded specialization while keeping the broad capability via meshing of children.
+
+See updates to the state machine (GapFind node) and phases list. The loop-orchestrator-skeleton.md includes placeholder calls for GapFind.
+
+#### Testing Gap Finders and Specialization Splits
+The testing infrastructure (see `testing/meshed-skills-testing-infrastructure.md` and `infrastructure/testing-meshed-skills-and-agents.md`) must cover:
+- Synthetic "vast task" scenarios that exercise a broad agent, then trigger GapFind, validate proposed splits, spawn child test agents, run them on sub-tasks, and measure if the split + mesh improves overall vast-task performance.
+- Validation that split children correctly inherit and mesh back without duplication or loss.
+- Metrics for "specialization efficiency" (e.g., child agents achieve higher precision on narrow tasks than parent could post-max).
+- Use best-of-n across broad vs. meshed-specialists configurations.
 
 ### Parent / Main Grok Interaction
 

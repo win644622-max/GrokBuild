@@ -17,3 +17,17 @@ See the per-focus copy at `agents/sustaining-self-improver/<focus>/testing/meshe
 The sustaining loop (via its orchestrator) is the primary "customer" and improver of this infrastructure.
 
 (Initial placeholder — the sustaining agent's focus-specific version is the current detailed implementation target. We will promote/refine the top-level as the first sustaining agents prove the patterns.)
+
+## Gap Finders, Specialization Splitting, and Recursive Testing
+
+Extend the shared harness to support:
+
+- Gap Finder validation batteries: scenarios that force plateau detection and "what agent types to mesh/split" proposals. Use the sustaining agent's own GapFind logic in simulation.
+- Split simulators: create temporary child sustaining instances in worktrees, run them on sub-domains, measure if the split + mesh at parent level improves vast-task outcomes.
+- Multi-level recursive tests: build small trees (broad -> 2 children -> grandchildren) and run the full sustain loop across levels, asserting emergent capabilities and no drift/loss in meshing.
+- Metrics specific to recursion: specialization depth achieved, cross-level synergy scores, "evolution maxed" detection accuracy (compare GapFind predictions vs. actual post-split performance).
+- The shared `mesh-tester` harness should have a `--mode=gapfind-split-recursive` flag.
+
+Sustaining agents are expected to contribute improvements to this shared testing infrastructure via their own Acquire/Mesh cycles (e.g., acquire better tree-simulation techniques and mesh them in).
+
+See the per-focus `agents/sustaining-self-improver/<focus>/testing/meshed-skills-testing-infrastructure.md` for agent-specific usage and the GapFind phase integration.
