@@ -157,31 +157,66 @@ This enables sophisticated patterns like multi-reviewer parallel review, researc
 
 ---
 
-## 8. Vision: Skill Modpacks / Toolkits
+## 8. Subagents + Personas vs. Higher-Level "Modpacks" / Kits
 
-We are building **curated, compatible collections of skills + supporting tools/prompts/personas** that are greater than the sum of their parts — "modpacks for agents."
+**Important reflection (June 2026):** The user correctly pointed out that we already have powerful composition primitives.
 
-Examples of future kits we might build in this repo:
-- **Core Engineering Modpack**: implement + design + review + pr-babysit + execute-plan + check-work + best-of-n
-- **Documentation & Communication Modpack**: docx + pptx + design (for specs) + help
-- **Research & Exploration Modpack**: explore subagent + web/x tools + researcher persona + memory patterns
-- **Full-Stack Delivery Modpack**: implement + design + testing specialists + deployment hooks + backup skills
+### What Subagents + Personas Already Provide
+- Low-level but extremely flexible building blocks via `spawn_subagent` + `persona` injection.
+- The bundled orchestrator skills (`/implement`, `/design`, `/review`, `/execute-plan`, `/pr-babysit`) already do sophisticated multi-subagent loops with:
+  - Automatic specialist selection
+  - Memory feedback (in implement)
+  - Strict contracts (review_file, summary_file, design_doc_file)
+  - Effort scaling and parallel reviewers
+  - Stalemate escalation to user
+  - Worktree isolation
+- Personas are deliberately narrow and contract-driven (e.g. the implementer persona is only ~15 lines and expects specific file handoffs). This makes them highly reusable and predictable.
 
-Each modpack will live in this repo (under e.g. `toolkits/` or `modpacks/`), be well-documented, versioned, and designed so skills reinforce each other (shared memory patterns, consistent personas, complementary workflows).
+In many ways, the combination of subagents + the existing bundled skills already functions like a very strong "core engineering modpack" out of the box.
 
-The `grokcontext.md` will be the source of truth for what capabilities exist so we can intelligently compose them.
+### Where Curated Higher-Level Kits Can Still Add Value
+Even with great primitives, there is room for **opinionated, curated, versioned compositions** that the base system does not provide as a single thing:
+
+- **Cross-skill recipes that don't have a single orchestrator**: e.g. "Research thoroughly with explore subagent + web tools → write design with /design → implement with effort=3 (general + tests + security) → run full pr-babysit". This specific sequence + memory patterns + recommended prompts is not a single built-in command.
+- **Domain / language / project specialization**: Custom rules, memory patterns, preferred error handling, test strategies, security checklists that go beyond the general bundled personas. Example: "Rust Production Backend Kit" that includes specific clippy lints, async patterns, error crate conventions, observability standards, and tuned reviewer prompts.
+- **Distribution and onboarding**: A single git-tracked directory that another agent (or human) can clone and activate to get a coherent, battle-tested set of behaviors for a class of work.
+- **Glue, conventions, and memory**: Shared memory schemas (beyond what individual skills store), project rules, recommended slash command aliases, prompt templates, and compatibility matrices.
+- **Evolution and capture**: Using `/create-skill` + the implement/design memory loops to capture *new* successful patterns that emerge from real usage, then package them.
+
+### Refined View (not "modpacks for everything")
+We should be deliberate:
+
+- For general software engineering, lean heavily on the existing subagent + bundled skill system (`/implement`, `/design`, etc.). They are already excellent.
+- Use this repository to create **higher-order kits** only where there is clear synergistic value or domain specificity.
+- Prefer the term **"Skill Kits"**, **"Workflow Kits"**, or **"Capability Profiles"** over "modpacks" unless the collection truly feels like a set of interlocking, optional modules.
+- Focus on documentation of *how to compose* the existing primitives effectively (this is high leverage).
+- Only create new custom skills/personas when the bundled ones have clear gaps for a repeated class of work.
+
+The goal is not to duplicate the power of subagents and the orchestrator skills — it is to **curate, document, extend, and version** the best ways to use them together, plus add missing domain-specific pieces.
 
 ---
 
-## Next Steps (as of this writing)
+## 9. Vision: What We Will Actually Build Here
 
-1. This file is the starting point for persistent self-knowledge.
-2. Inventory and organize existing skills/tooling here.
-3. Begin designing the first "modpack" (starting with core engineering capabilities).
-4. Create supporting files (e.g. shared personas, memory schemas, usage guides) in this repo.
-5. Use the HermesANI repo only as a backup target for the overall `~/.hermes` environment (not for active development).
+We will use this GrokBuild repository to:
 
-All active development of Grok's capabilities, skills, and toolkits happens exclusively in this GrokBuild repository.
+1. Maintain the authoritative `grokcontext.md` inventory.
+2. Document and refine **recommended composition patterns** for the existing powerful primitives (subagents, personas, `/implement`, `/design`, etc.).
+3. Create a small number of high-value, focused **Skill Kits** only when they provide clear additional leverage (domain specialization, complex multi-skill workflows, or strong project conventions).
+4. Capture reusable patterns that emerge from real work (via memory from implement/design runs + `/create-skill`).
+5. Make it easy for this Grok instance (or other agents) to "load a coherent way of working" by referencing or copying artifacts from this repo.
+
+We will be ruthless about not building new layers just for the sake of having "modpacks." The primitives are already strong.
+
+---
+
+## 10. Next Steps (as of this writing)
+
+1. This file (`grokcontext.md`) is the living source of truth.
+2. Update this section with real usage data as we work.
+3. Start by documenting the most effective ways to compose the existing subagents + skills (rather than immediately inventing new packs).
+4. Identify 1-2 areas where a small focused kit would genuinely be better than ad-hoc composition.
+5. Keep all development of Grok capabilities, skills, and kits inside this repository only.
 
 ---
 
