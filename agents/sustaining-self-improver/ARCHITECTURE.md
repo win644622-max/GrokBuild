@@ -11,7 +11,7 @@
 
 The Sustaining Self-Improving Subagent is a specialized, persistent subagent spawned from the main Grok (via `spawn_subagent`). It maintains a durable identity and "self" across sessions and process restarts. Its core deliverable is a **continuous or periodic sustaining improvement loop** that observes its domain-specific performance and gaps, acquires targeted knowledge/skills (via web, code/docs, introspection, other agents, parent feedback), safely integrates them into a growing personal skill pack (SKILL.md files, custom personas, helper scripts, operating prompt/memory updates), applies the improved capabilities on domain tasks, reflects on improvement quality via self-review + metrics, and persists all artifacts durably and versioned inside the GrokBuild repository (`~/.grok/memory`, a git repo maintained by `~/.grok/bin/update-mem-context.sh`).
 
-The agent's home is `~/.grok/memory/agents/sustaining-self-improver/<focus-slug>/` (e.g. `rust-backend-expert/`, `design-doc-authoring/`, or `unidentified-seed-abc123/` during bootstrap). This subtree is the single source of truth for its identity, skill registry, knowledge base, performance history, improvement log, and git version history. The loop leverages existing Grok primitives: `spawn_subagent` (with `explore`/`plan`/`general-purpose` + personas), bundled orchestrator skills (`/implement`, `/design`, `/review`, `/create-skill`), `scheduler_create` (durable + recurring), `enter_plan_mode`/`exit_plan_mode`, `todo_write`, `read_file`/`write`/`search_replace`, web tools, and the review_file pattern (Status: open → addressed/wontfix + Response + Revision Summary) from `bundled/skills/shared/personas/{implementer,design-doc-writer}.md`.
+The agent's home is `~/.grok/memory/agents/sustaining-self-improver/<focus-slug>/` (e.g. `rust-backend-expert/`, `design-doc-authoring/`, or `unidentified-seed-abc123/` during bootstrap). This subtree is the single source of truth for its identity, skill registry, knowledge base, performance history, improvement log, and git version history. The loop leverages existing Grok primitives: `spawn_subagent` (with `explore`/`plan`/`general-purpose` + personas — see precise injection below), bundled orchestrator skills (`/implement`, `/design`, `/review`, `/create-skill` at `~/.grok/skills/create-skill/SKILL.md`), `scheduler_create` (durable + recurring), `enter_plan_mode`/`exit_plan_mode`, `todo_write`, `read_file`/`write`/`search_replace`, web tools, and the review_file pattern (Status: open → addressed/wontfix + Response + Revision Summary) from `bundled/skills/shared/personas/{implementer,design-doc-writer}.md`.
 
 The design is grounded in the current environment (Grok 4.3, subagent depth limits, worktree isolation, memory experimental status, git-backed `memory/` cron, implement/design skill review-fix loops until 0 open issues, etc.).
 
@@ -41,7 +41,7 @@ This architecture turns sporadic self-improvement into a **first-class, versione
 - Safe self-modification using existing review_file + plan mode + bundled skills patterns (never direct writes to core; always reviewable changes + explicit commits).
 - Clear parent/main Grok interaction model (spawning with focus, task delegation in domain, progress monitoring, capability handoff via readable artifacts).
 - Gap-driven + task-driven + curiosity-driven acquisition that stays bounded.
-- Full grounding in current tools: cite exact paths (`spawn_subagent`, `scheduler_create {durable: true, recurring: true}`, `enter_plan_mode`, `bundled/skills/create-skill/SKILL.md`, `review` patterns from personas, `todo_write` scaffold, `~/.grok/memory` git, etc.).
+- Full grounding in current tools: cite exact paths (`spawn_subagent`, `scheduler_create {durable: true, recurring: true}`, `enter_plan_mode`, `~/.grok/skills/create-skill/SKILL.md` (or `/create-skill`), `review` patterns from personas, `todo_write` scaffold, `~/.grok/memory` git, etc.).
 - Observability + human-in-the-loop points + explicit safeguards against drift/runaway.
 - Per-focus specialization while allowing an "unidentified" bootstrap mode.
 
@@ -83,13 +83,12 @@ This architecture turns sporadic self-improvement into a **first-class, versione
 |    7. REFLECT   (metrics, self-eval, append to improvement_log)       |
 |    8. PERSIST   (git; durable scheduler state)                        |
 |                                                                       |
-|  Uses: spawn_subagent (explore/plan/general + personas),              |
+|  Uses: spawn_subagent (explore/plan/general + precise persona injection: bracketed role tag in `description` e.g. "[sustaining-self-improver:<focus>]" + prepended full persona instructions read from `bundled/skills/shared/personas/*.md` into the `prompt`; do NOT pass the `persona` kwarg to spawn_subagent — this is the pattern from implement/SKILL.md:59, design/SKILL.md:41, review/SKILL.md etc.), |
 |        /design or direct writer for big changes (plan mode),          |
 |        /implement for code changes to its helpers,                    |
-|        /create-skill for new pack entries,                            |
+|        /create-skill (the skill at ~/.grok/skills/create-skill/SKILL.md; discoverable via normal mechanisms) for new pack entries, |
 |        enter_plan_mode for ambiguous self-arch changes,               |
-|        scheduler_* (its own durable task), todo_write, run_terminal   |
-|        (git), read/write/search_replace, web tools.                   |
+|        scheduler_* (its own durable task), todo_write, run_terminal_command (git), read/write/search_replace, web tools.                   |
 +-----------------------------------------------------------------------+
                                   |
                                   v (git commits + cron)
@@ -145,7 +144,7 @@ stateDiagram-v2
    - Always cite sources (file paths, URLs, commit SHAs).
 
 4. **Propose Integration**: For each target, draft concrete changes.
-   - New/updated `skills/<name>/SKILL.md` (use patterns from `create-skill`).
+   - New/updated `skills/<name>/SKILL.md` (use patterns from `~/.grok/skills/create-skill/SKILL.md` or the `/create-skill` flow).
    - Updates to IDENTITY.md, custom personas (toml + md), helper scripts.
    - Knowledge entries (curated md under `knowledge/`).
    - Prompt/memory deltas for its operating instructions.
@@ -167,7 +166,7 @@ stateDiagram-v2
    - Apply via `search_replace`/`write` (orchestrator does this after review approval; subagents do not write core pack directly in v1).
    - `run_terminal_command`: `cd <home>; git add -A; git commit -m "sustain: <concise> (loop <id>)"`.
    - Update STATE.md + SKILL_REGISTRY.md.
-   - For new skills, optionally invoke `create-skill` flow (but since autonomous, script the scaffolding).
+   - For new skills, optionally invoke the `/create-skill` flow or directly follow patterns from `~/.grok/skills/create-skill/SKILL.md` (script the scaffolding for autonomy).
 
 7. **Reflect & Evaluate**: 
    - Compute simple metrics (e.g. "acquired X items, integrated Y after Z review rounds, estimated coverage delta").
@@ -418,7 +417,7 @@ No new secrets storage; agent instructed never to persist creds.
 - `bundled/skills/implement/SKILL.md` (full review-fix loop, todo scaffold, memory.py helper, past_issues_briefing, review_file contract, wontfix/stalemate escalation).
 - `bundled/skills/design/SKILL.md` (writer/reviewer loop, exact review_file update rules: open → addressed + Response + Revision Summary).
 - `bundled/skills/shared/personas/{implementer.md, design-doc-writer.md, design-doc-reviewer.md, reviewer.md}` (the review_file protocol this task prompt and design follow).
-- `bundled/skills/create-skill/SKILL.md` (scaffolding new SKILL.md).
+- `~/.grok/skills/create-skill/SKILL.md` (or the `/create-skill` invocation; scaffolding patterns for new SKILL.md).
 - `bundled/skills/review/SKILL.md` (reviewer usage).
 - `bundled/agents/{general-purpose.md, explore.md, plan.md}` (base prompts + constraints).
 - `bin/update-mem-context.sh` (cron git maintenance of the repo containing sustaining homes).
