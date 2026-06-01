@@ -209,6 +209,86 @@ Core rule: **Never mutate pack without review_file gate + explicit git commit**.
 - Rollback: `git revert <sha>` (or checkout prior tree) + re-Observe.
 - Parent can veto by editing the review_file before integrate or via human-in-loop.
 
+### Skill Meshing and Modpack Evolution
+
+**Meshing is the core of self-evolution and modpack power.** Acquiring isolated skills is useful but limited; the sustaining agent's unique value (and the reason this architecture exists) is its ability to *mesh* new skills with its existing pack so they reinforce each other, resolve conflicts, and produce emergent higher-order capabilities. This is what turns a bag of skills into a true "modpack" for a skill subset.
+
+#### What Skill Meshing Means
+- **Compatibility alignment**: Ensure new skill's inputs/outputs, terminology, memory patterns, and prompt style are consistent with the pack (e.g., a new "code-review" skill references the same severity taxonomy and review_file contract as the existing "design-review" skill).
+- **Cross-referencing and chaining**: Update SKILL.md files to explicitly call out "when used with <other-skill>, feed its output into this template...". Create small "meshing adapters" (scripts or prompt fragments) that bridge skills.
+- **Shared state and memory**: Align on common sections in knowledge/ or performance/ files. Evolve shared "modpack memory" patterns (analogous to the implement skill's memory.py but scoped to the focus's pack).
+- **Conflict resolution and synergy discovery**: Use the agent's own review/implement loops to detect clashes (e.g., one skill prefers minimal changes, another wants exhaustive tests) and resolve them into a coherent policy. Discover and document synergies (e.g., "research + design mesh yields 2x better PR Plan realism").
+- **Modpack versioning**: A "meshed pack" is not just the sum of skills/ + personas/. It is a versioned unit (tagged in git) with a top-level `MODPACK.md` describing the mesh rationale, compatibility matrix, recommended workflows, and performance characteristics of the whole.
+
+The sustaining loop treats meshing as a first-class activity on par with (or more important than) raw acquisition. New skills are acquired *with meshing in mind*.
+
+#### How the Sustaining Loop Performs Meshing
+Meshing is integrated into the loop (primarily after Integrate, as a dedicated sub-phase or explicit "Mesh" step in the 8-phase machine):
+
+1. **Post-Integrate Analysis**: After adding a skill, the orchestrator (using `todo_write` id like `mesh-analyze`) scans the pack:
+   - Read all SKILL.md, personas, and recent performance/ entries.
+   - Identify touchpoints (shared concepts, I/O formats, memory usage, workflow steps).
+   - Score "mesh potential" vs "conflict risk" (using simple heuristics or spawn a small reviewer subagent).
+
+2. **Propose Mesh Changes**:
+   - Draft updates to existing SKILL.md files (add "Meshing Notes" sections).
+   - Create or update `meshing/<new-skill>-with-<existing>.md` adapters.
+   - Evolve `MODPACK.md` (or create it) with a "Mesh Log" entry for this cycle.
+   - Propose updates to the agent's own operating prompt / IDENTITY.md to "natively understand the meshed pack".
+   - For complex meshes: first `enter_plan_mode` to design the mesh architecture.
+
+3. **Mesh Review and Testing**:
+   - Produce a review_file focused on the mesh (not just the individual skill).
+   - **Critical**: Invoke the testing infrastructure (see below) *before* final review. Run synthetic tasks that exercise the mesh (e.g., "use research output directly in a design task using the meshed prompts").
+   - Use existing primitives: spawn subagents loaded with the *meshed* pack (via prompt injection of the MODPACK.md + relevant skills), apply `/review` or `/implement` on test outputs, use `best-of-n` or `check-work` for validation.
+   - Self-review or parent review of the mesh using the standard review_file contract + "Status: open → addressed + Response + Revision Summary".
+
+4. **Commit the Meshed State**:
+   - After 0 open issues on the mesh review, apply changes (orchestrator only).
+   - `git commit` with message `sustain(<focus>): mesh <new-skill> into pack (loop-<id>)`.
+   - Update SKILL_REGISTRY.md with "meshed_with: [...]" and mesh quality notes.
+   - Tag a "modpack release" if the mesh is significant (e.g., `git tag modpack-vX.Y` on the subtree or use a lightweight marker file).
+
+5. **Reflection on the Mesh**:
+   - In Reflect phase: explicitly evaluate the *mesh quality* ("Did the new skill + existing produce better results on cross-skill tasks? By what metric?").
+   - Log synergies and any "emergent behaviors" discovered.
+   - Feed this back into future Acquire decisions ("this mesh revealed a gap in X — acquire more in that area").
+
+#### Why This Is the Most Important Part of Self-Evolution and Modpack Evolution
+- **Self-evolution**: The agent doesn't just grow a list of skills; it grows a *coherent, battle-tested operating system* for its skill subset. Meshing is how isolated improvements compound into super-linear capability gains.
+- **Modpack evolution**: The agent's pack *is* the modpack for its focus. Meshing ensures that as the modpack grows (via acquisition + integration), it remains usable as a unit rather than a pile of potentially conflicting pieces. This directly supports the original "modpack but for skills that work the best with each other" vision.
+- **Sustainability**: Without meshing, the loop would produce skill bloat and fragmentation, making the agent *less* effective over time. Meshing + the review loop (the agent re-uses its own `/review` + `/implement` primitives on its pack) creates a closed, self-reinforcing improvement flywheel.
+- **Emergence**: Many powerful behaviors only appear at the mesh level (e.g., a research skill + design skill + testing patterns mesh might automatically produce "research-backed, testable design proposals").
+
+The sustaining agent is explicitly authorized (and incentivized via its charter in IDENTITY.md) to prioritize meshing over pure acquisition when gaps in pack coherence are detected.
+
+See the new `loop-orchestrator-skeleton.md` for how meshing is wired into the phase todo ids (e.g., `mesh-analyze`, `mesh-review`, `mesh-integrate`).
+
+#### Testing Meshed Skills and Agents (Infrastructure)
+The architecture requires (and we will build) dedicated testing infrastructure for meshes. This lives in the GrokBuild repo (e.g., under a top-level `infrastructure/testing/` or per-focus `testing/` inside the sustaining home) and re-uses existing tools:
+
+- **Isolated execution environments**: Use `spawn_subagent` with worktree isolation (`isolation: "worktree"`) or temporary git worktrees created via `run_terminal_command`. Load only the meshed pack under test (via prompt injection of MODPACK.md + selected skills).
+- **Synthetic task generation**: The agent (or a helper) generates test tasks that specifically stress the mesh (e.g., "Take output from skill A and feed it as input to skill B using the meshed adapter. Produce a design doc.").
+- **Validation loops**: Apply the full review/implement machinery:
+  - Spawn reviewers (general + specialists) on the meshed outputs.
+  - Use `check-work` for build/test/lint validation of any generated code in the mesh.
+  - Use `best-of-n` to compare meshed vs. unmeshed performance on the same task.
+  - Run `/implement` or `/design` on the mesh itself if the mesh involves new orchestrator logic.
+- **Metrics and regression**: Append to `performance/mesh-<id>.jsonl` (compatibility score, synergy delta, conflict count, end-to-end task success rate pre/post mesh). Use these in future Analyze phases.
+- **Automated mesh test harness**: A small script or SKILL.md (`testing/mesh-validator`) that:
+  - Takes a proposed mesh (diff or set of files).
+  - Sets up N isolated environments.
+  - Runs a battery of cross-skill tasks.
+  - Collects review_file outputs + metrics.
+  - Produces a "Mesh Test Report" (markdown with pass/fail + suggestions).
+- **Human/parent oversight**: Test results always surface via readable files; major meshes require parent approval before integrate (via review_file or `ask_user_question`).
+- **Versioning of tests**: Test cases and harnesses are part of the pack (under `testing/`) and versioned in git alongside the skills. The sustaining loop can acquire/improve its own testing infrastructure via the same acquire-mesh-integrate cycle.
+- **Safety in testing**: All test executions use bounded resources, read-only where possible for exploration, and are logged. Failures in mesh tests become high-priority acquisition targets ("mesh X with Y causes Z failures — acquire better error handling patterns").
+
+This infrastructure turns "add a skill and hope it meshes" into "add, mesh, test the mesh rigorously, then commit only if the mesh improves the pack."
+
+See the dedicated infrastructure files we will create in this repo for the concrete harness, example test batteries, and integration with the loop (e.g., the skeleton will call into the mesh tester during the Mesh phase).
+
 ### Parent / Main Grok Interaction
 
 - **Spawning**:
