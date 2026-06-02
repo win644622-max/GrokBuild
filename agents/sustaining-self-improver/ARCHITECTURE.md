@@ -292,6 +292,18 @@ The sustaining agent is explicitly authorized (and incentivized via its charter 
 
 See the new `loop-orchestrator-skeleton.md` for how meshing is wired into the phase todo ids (e.g., `mesh-analyze`, `mesh-review`, `mesh-integrate`).
 
+#### Concrete Example: Rust Coder Specialized Focus (First Test Instance)
+A practical test case for the entire architecture is the "rust-coder" sustaining self-improving agent (see `agents/sustaining-self-improver/rust-coder/` in this repo).
+
+- **Broad "vast task"**: "Build and maintain high-quality, safe, performant Rust codebases for real systems (CLI tools, web services, libraries, async runtimes)."
+- **Initial bootstrap pack**: `skills/rust-basics/` (cargo workflow, fmt/clippy, ownership patterns, error handling).
+- **Acquire example**: Gap in "async" detected from parent task ("build Axum service") → web_search + explore subagent on tokio/axum best practices → propose `skills/rust-async/SKILL.md`.
+- **Mesh example**: Mesh rust-async with rust-basics + general implementer persona → add "Meshing Notes" requiring `#[tokio::main]` examples use the same error handling as basics; create adapter for "use the meshed research output directly in async design tasks"; test the mesh by generating + `cargo test` + reviewer on a sample Axum handler in isolated worktree.
+- **GapFind + split example**: After several loops, metrics plateau on "systems programming" tasks while async/web improve. GapFind proposes: "Mesh a 'systems-unsafe' sub-persona" and "Split into child sustaining agent 'rust-systems-expert' for low-level work (pointers, FFI, no_std)". Parent continues as broad orchestrator, meshing child's specialized pack back for full-system tasks.
+- **Testing**: Uses the infrastructure — worktree with real `cargo new`, inject meshed pack, run `cargo clippy -- -D warnings && cargo test`, collect review_file + metrics, feed to GapFind for next acquisition.
+
+This concrete focus will be used to validate the full loop, GapFind, meshing, splitting, and testing before scaling to other domains. See the `rust-coder/` subtree (IDENTITY.md, initial skills, planning docs) for the live bootstrap of this test case.
+
 #### Testing Meshed Skills and Agents (Infrastructure)
 The architecture requires (and we will build) dedicated testing infrastructure for meshes. This lives in the GrokBuild repo (e.g., under a top-level `infrastructure/testing/` or per-focus `testing/` inside the sustaining home) and re-uses existing tools:
 
